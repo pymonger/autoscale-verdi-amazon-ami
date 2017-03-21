@@ -1,0 +1,3 @@
+STORAGE_DRIVER=devicemapper
+VG=vg-docker
+DATA_SIZE=1327G
