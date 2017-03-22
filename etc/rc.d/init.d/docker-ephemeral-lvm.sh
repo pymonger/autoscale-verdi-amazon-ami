@@ -122,9 +122,9 @@ if [[ -e "$DATA_DEV" ]]; then
   mkdir -p $DATA_DIR || true
   mount $DATA_DEV_ENC $DATA_DIR
 
-  # set permissions
-  chown -R ${user}:${group} ${DATA_DIR} || true
-
   # copy work and index style
   cp -rp ${DATA_DIR}.pristine/work ${DATA_DIR}/ || true
+
+  # set permissions
+  chown -R ${user}:${group} ${DATA_DIR} || true
 fi
