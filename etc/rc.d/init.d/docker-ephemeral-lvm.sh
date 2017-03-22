@@ -5,7 +5,10 @@
 # the c3.xlarge and i3.4xlarge instance types.
 
 # get user/group
-if [[ -d "/home/ec2-user" ]]; then
+if [[ -d "/home/ops" ]]; then
+  user="ops"
+  group="ops"
+elif [[ -d "/home/ec2-user" ]]; then
   user="ec2-user"
   group="ec2-user"
 else
