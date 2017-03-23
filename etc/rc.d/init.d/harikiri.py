@@ -28,12 +28,16 @@ def is_jobless(root_work, inactivity_secs):
         if not match: continue
         dirs.sort()
         for d in dirs:
-            done_file = os.path.join(root, d, '.done')
-            if not os.path.exists(done_file): return False
+            job_dir = os.path.join(root, d)
+            done_file = os.path.join(job_dir, '.done')
+            if not os.path.exists(done_file):
+                logging.info("%s: no .done file found. Not jobless yet." % job_dir)
+                return False
             t = os.path.getmtime(done_file)
             done_dt = datetime.fromtimestamp(t)
             age = (datetime.utcnow() - done_dt).total_seconds()
             if most_recent is None or age < most_recent: most_recent = age
+            logging.info("%s: age=%s" % (job_dir, age))
     if most_recent is None:
         if NO_JOBS_TIMER is None: NO_JOBS_TIMER = time.time()
         else:
@@ -65,8 +69,12 @@ def seppuku():
     """Shutdown supervisord and the instance if it detects that it is 
        currently part of an autoscale group."""
 
+    logging.info("Initiating seppuku.")
+
     # introduce random sleep
-    time.sleep(randint(0, 600))
+    meditation_time = randint(0, 600)
+    logging.info("Meditating for %s seconds to avoid thundering herd." % meditation_time)
+    time.sleep(meditation_time)
 
     # check if instance part of an autoscale group
     as_group = None
@@ -78,7 +86,7 @@ def seppuku():
                 as_group = group.name
                 break
     if as_group is None:
-        logging.info("This instance %s is not part of any autoscale group." % id)
+        logging.info("This instance %s is not part of any autoscale group. Cancelling seppuku." % id)
         return
 
     # gracefully shutdown
@@ -97,10 +105,16 @@ def graceful_shutdown(as_group, id):
     # get connection
     conn = boto.ec2.autoscale.AutoScaleConnection()
 
+    # stop docker containers
+    try:
+        logging.info("Stopping all docker containers.")
+        os.system("/usr/bin/docker stop --time=30 $(/usr/bin/docker ps -aq)")
+    except: pass
+
     # shutdown supervisord
     try:
-        call(["/usr/bin/sudo", "/usr/bin/systemctl", "stop", "supervisord"])
         logging.info("Stopping supervisord.")
+        call(["/usr/bin/sudo", "/usr/bin/systemctl", "stop", "supervisord"])
     except: pass
 
     # let supervisord shutdown its processes
