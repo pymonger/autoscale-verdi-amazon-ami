@@ -3,8 +3,8 @@ import os, sys, time, re, requests, logging, argparse, traceback, backoff
 from random import randint
 from subprocess import call
 from datetime import datetime
-import boto.ec2.autoscale
-from boto.exception import BotoServerError
+import boto3
+from botocore.exceptions import ClientError
 
 
 log_format = "[%(asctime)s: %(levelname)s/%(funcName)s] %(message)s"
@@ -47,19 +47,19 @@ def is_jobless(root_work, inactivity_secs):
     return False
 
 
-@backoff.on_exception(backoff.expo, BotoServerError, max_tries=10, max_value=512)
+@backoff.on_exception(backoff.expo, ClientError, max_tries=10, max_value=512)
 def get_all_groups(conn):
     """Get all AutoScaling groups."""
     return conn.get_all_groups()
 
 
-@backoff.on_exception(backoff.expo, BotoServerError, max_tries=10, max_value=512)
+@backoff.on_exception(backoff.expo, ClientError, max_tries=10, max_value=512)
 def terminate_instance(conn, id):
     """Terminate instance in AutoScaling group."""
     conn.terminate_instance(id)
 
 
-@backoff.on_exception(backoff.expo, BotoServerError, max_value=512)
+@backoff.on_exception(backoff.expo, ClientError, max_value=512)
 def detach_instance(conn, as_group, id):
     """Detach instance from AutoScaling group."""
     conn.detach_instances(as_group, [id])
@@ -78,12 +78,18 @@ def seppuku():
 
     # check if instance part of an autoscale group
     as_group = None
-    id = requests.get('http://169.254.169.254/latest/meta-data/instance-id').content
-    conn = boto.ec2.autoscale.AutoScaleConnection()
-    for group in get_all_groups(conn):
-        for i in group.instances:
-            if id == i.instance_id:
-                as_group = group.name
+    id = str(requests.get('http://169.254.169.254/latest/meta-data/instance-id').content)
+    logging.info("Our instance id: %s" % id)
+    c = boto3.client('autoscaling')
+    for group in c.describe_auto_scaling_groups()['AutoScalingGroups']:
+        group_name = str(group['AutoScalingGroupName'])
+        logging.info("Checking group: %s" % group_name)
+        for i in group['Instances']:
+            asg_inst_id = str(i['InstanceId'])
+            logging.info("Checking group instance: %s" % asg_inst_id)
+            if id == asg_inst_id:
+                as_group = group_name
+                logging.info("Matched!")
                 break
     if as_group is None:
         logging.info("This instance %s is not part of any autoscale group. Cancelling seppuku." % id)
