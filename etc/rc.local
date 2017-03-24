@@ -24,4 +24,4 @@ fi
 sudo -u ops -i /etc/rc.d/init.d/provision-verdi.sh > /var/log/provision-verdi.log 2>&1 || true
 
 # start verdi
-sudo -u ops -i /etc/rc.d/init.d/start-verdi.sh > /var/log/start-verdi.log 2>&1 &
+sudo -u ops -i /etc/rc.d/init.d/start-verdi.sh > /var/log/start-verdi.log 2>&1 || true
