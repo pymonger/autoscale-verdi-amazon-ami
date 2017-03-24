@@ -48,21 +48,16 @@ def is_jobless(root_work, inactivity_secs):
 
 
 @backoff.on_exception(backoff.expo, ClientError, max_tries=10, max_value=512)
-def get_all_groups(conn):
+def get_all_groups(c):
     """Get all AutoScaling groups."""
-    return conn.get_all_groups()
-
-
-@backoff.on_exception(backoff.expo, ClientError, max_tries=10, max_value=512)
-def terminate_instance(conn, id):
-    """Terminate instance in AutoScaling group."""
-    conn.terminate_instance(id)
+    return c.describe_auto_scaling_groups()['AutoScalingGroups']
 
 
 @backoff.on_exception(backoff.expo, ClientError, max_value=512)
-def detach_instance(conn, as_group, id):
+def detach_instance(c, as_group, id):
     """Detach instance from AutoScaling group."""
-    conn.detach_instances(as_group, [id])
+    c.detach_instances(InstanceIds=[id], AutoScalingGroupName=as_group,
+                       ShouldDecrementDesiredCapacity=True)
 
 
 def seppuku():
@@ -81,7 +76,7 @@ def seppuku():
     id = str(requests.get('http://169.254.169.254/latest/meta-data/instance-id').content)
     logging.info("Our instance id: %s" % id)
     c = boto3.client('autoscaling')
-    for group in c.describe_auto_scaling_groups()['AutoScalingGroups']:
+    for group in get_all_groups(c):
         group_name = str(group['AutoScalingGroupName'])
         logging.info("Checking group: %s" % group_name)
         for i in group['Instances']:
@@ -108,8 +103,8 @@ def graceful_shutdown(as_group, id):
     """Gracefully shutdown supervisord, detach from AutoScale group,
        and shutdown."""
 
-    # get connection
-    conn = boto.ec2.autoscale.AutoScaleConnection()
+    # get client
+    c = boto3.client('autoscaling')
 
     # stop docker containers
     try:
@@ -128,7 +123,7 @@ def graceful_shutdown(as_group, id):
 
     # detach and die
     logging.info("Committing seppuku.")
-    detach_instance(conn, as_group, id)
+    detach_instance(c, as_group, id)
     time.sleep(60)
     call(["/usr/bin/sudo", "/sbin/shutdown", "-h", "now"])
 
