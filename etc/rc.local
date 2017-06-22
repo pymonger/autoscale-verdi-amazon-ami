@@ -15,13 +15,13 @@ RUNLEVEL=`runlevel | awk '{print $2}'`
 # set termate
 sudo -u ops -i /etc/rc.d/init.d/set_terminate.sh > /var/log/set_terminate.log 2>&1 || true
 
-#startup or shutdown
-if [ $RUNLEVEL -eq 2 -o $RUNLEVEL -eq 3 -o $RUNLEVEL -eq 4 -o $RUNLEVEL -eq 5 ]; then
-  sudo -u ops -i /home/ops/verdi/bin/python /etc/rc.d/init.d/harikiri.py /data/work > /var/log/harikiri.log 2>&1 &
-fi
-
 # provision verdi
 sudo -u ops -i /etc/rc.d/init.d/provision-verdi.sh > /var/log/provision-verdi.log 2>&1 || true
 
 # start verdi
 sudo -u ops -i /etc/rc.d/init.d/start-verdi.sh > /var/log/start-verdi.log 2>&1 || true
+
+# start harikiri
+if [ $RUNLEVEL -eq 2 -o $RUNLEVEL -eq 3 -o $RUNLEVEL -eq 4 -o $RUNLEVEL -eq 5 ]; then
+  sudo -u ops -i /home/ops/verdi/bin/python /etc/rc.d/init.d/harikiri.py /data/work > /var/log/harikiri.log 2>&1 &
+fi
