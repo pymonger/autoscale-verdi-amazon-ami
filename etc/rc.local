@@ -23,5 +23,14 @@ sudo -u ops -i /etc/rc.d/init.d/start-verdi.sh > /var/log/start-verdi.log 2>&1 |
 
 # start harikiri
 if [ $RUNLEVEL -eq 2 -o $RUNLEVEL -eq 3 -o $RUNLEVEL -eq 4 -o $RUNLEVEL -eq 5 ]; then
-  sudo -u ops -i /home/ops/verdi/bin/python /etc/rc.d/init.d/harikiri.py /data/work > /var/log/harikiri.log 2>&1 &
+  sudo -u ops -i /home/ops/verdi/bin/python /etc/rc.d/init.d/harikiri.py \
+    -l $(grep ^MOZART_REST_URL /home/ops/verdi/ops/hysds/celeryconfig.py | awk 'BEGIN{FS="\""}{print $2}') \
+    /data/work > /var/log/harikiri.log 2>&1 &
+fi
+
+# start spot_termination_detector
+if [ $RUNLEVEL -eq 2 -o $RUNLEVEL -eq 3 -o $RUNLEVEL -eq 4 -o $RUNLEVEL -eq 5 ]; then
+  sudo -u ops -i /home/ops/verdi/bin/python /etc/rc.d/init.d/spot_termination_detector.py -c 60 \
+    $(grep ^MOZART_REST_URL /home/ops/verdi/ops/hysds/celeryconfig.py | awk 'BEGIN{FS="\""}{print $2}') \
+    > /var/log/spot_termination_detector.log 2>&1 &
 fi
